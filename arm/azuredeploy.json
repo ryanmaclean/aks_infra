@@ -2,6 +2,16 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.1",
     "parameters": {
+        "repoUrl": {
+            "type": "string",
+            "defaultValue": "https://github.com/ryanmaclean/app-service-api-dotnet-todo-list.git"
+            }
+        },
+        "branch": {
+            "type": "string",
+            "defaultValue": "master"
+            }
+        },
         "clusterName": {
             "type": "string",
             "defaultValue":"aks101cluster",
