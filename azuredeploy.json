@@ -11,6 +11,9 @@
         },
         "location": {
           "type": "string",
+          "metadata": {
+              "description": "The location of the Managed Cluster resource."
+          },
           "allowedValues": [
             "West US",
             "East US",
