@@ -7,6 +7,8 @@ be it via Azure Resource Manager (ARM), or with Terraform.
 ## Overview
 Pictured is the infrastructure deployed via Terraform:
 
+![alt text](https://github.com/ryanmaclean/aks_infra/blob/master/Screen%20Shot%202020-06-18%20at%2011.54.30%20AM.png?raw=true)
+
 * VNet
 * Two Subnets
   * Windows Node Subnet
