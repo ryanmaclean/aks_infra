@@ -1,5 +1,4 @@
 provider "azurerm" {
-  version = "=2.10.0"
   features {}
 }
 
@@ -48,7 +47,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "win1" {
   kubernetes_cluster_id = azurerm_kubernetes_cluster.default_aks.id
   vm_size               = "Standard_DS2_v2"
   node_count            = 1
-  os_type               = "Windows"
+  os_sku                = "Windows2022"
   tags = {
     env   = "Dev"
     owner = "ryanmaclean"
