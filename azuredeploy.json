@@ -1,10 +1,14 @@
 {
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.1",
+    "contentVersion": "2.0.0.0",
+    "metadata": {
+        "description": "AKS Cluster deployment with Managed Identity and modern configuration",
+        "lastUpdated": "2026-01"
+    },
     "parameters": {
         "clusterName": {
             "type": "string",
-            "defaultValue": "dev-default",
+            "defaultValue": "aks-dev",
             "metadata": {
                 "description": "The name of the Managed Cluster resource."
             }
@@ -18,112 +22,198 @@
         },
         "dnsPrefix": {
             "type": "string",
-            "defaultValue": "test",
+            "defaultValue": "[concat(parameters('clusterName'), '-dns')]",
             "metadata": {
                 "description": "Optional DNS prefix to use with hosted Kubernetes API server FQDN."
             }
         },
+        "kubernetesVersion": {
+            "type": "string",
+            "defaultValue": "1.32",
+            "metadata": {
+                "description": "Kubernetes version for the cluster."
+            }
+        },
         "osDiskSizeGB": {
             "type": "int",
-            "defaultValue": 0,
+            "defaultValue": 128,
             "metadata": {
-                "description": "Disk size (in GB) to provision for each of the agent pool nodes. This value ranges from 0 to 1023. Specifying 0 will apply the default disk size for that agentVMSize."
+                "description": "Disk size (in GB) to provision for each of the agent pool nodes."
             },
-            "minValue": 0,
-            "maxValue": 1023
+            "minValue": 30,
+            "maxValue": 2048
         },
-        "agentCount": {
+        "minAgentCount": {
             "type": "int",
-            "defaultValue": 1,
+            "defaultValue": 2,
             "metadata": {
-                "description": "The number of nodes for the cluster."
+                "description": "Minimum number of nodes for autoscaling."
             },
             "minValue": 1,
-            "maxValue": 50
+            "maxValue": 100
+        },
+        "maxAgentCount": {
+            "type": "int",
+            "defaultValue": 5,
+            "metadata": {
+                "description": "Maximum number of nodes for autoscaling."
+            },
+            "minValue": 1,
+            "maxValue": 100
         },
         "agentVMSize": {
             "type": "string",
-            "defaultValue": "Standard_DS2_v3",
+            "defaultValue": "Standard_D4s_v5",
             "metadata": {
                 "description": "The size of the Virtual Machine."
             }
         },
-        "linuxAdminUsername": {
+        "networkPlugin": {
             "type": "string",
-            "defaultValue": "admin",
+            "defaultValue": "azure",
+            "allowedValues": ["azure", "kubenet", "none"],
             "metadata": {
-                "description": "User name for the Linux Virtual Machines."
+                "description": "Network plugin used for building Kubernetes network."
             }
         },
-        "sshRSAPublicKey": {
+        "networkPolicy": {
             "type": "string",
-            "defaultValue": "",
+            "defaultValue": "cilium",
+            "allowedValues": ["azure", "calico", "cilium", "none"],
             "metadata": {
-                "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
+                "description": "Network policy used for building Kubernetes network."
             }
         },
-        "servicePrincipalClientId": {
-            "metadata": {
-                "description": "Client ID (used by cloudprovider)"
-            },
-            "type": "securestring"
-        },
-        "servicePrincipalClientSecret": {
-            "metadata": {
-                "description": "The Service Principal Client Secret."
-            },
-            "type": "securestring"
-        },
-        "osType": {
+        "skuTier": {
             "type": "string",
-            "defaultValue": "Linux",
-            "allowedValues": [
-                "Linux"
-            ],
+            "defaultValue": "Standard",
+            "allowedValues": ["Free", "Standard", "Premium"],
             "metadata": {
-                "description": "The type of operating system."
+                "description": "The SKU tier of the AKS cluster."
             }
-        }        
+        },
+        "enableAutoUpgrade": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Enable automatic cluster upgrades."
+            }
+        },
+        "enableWorkloadIdentity": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Enable workload identity for pod-level Azure authentication."
+            }
+        },
+        "enableAzureRBAC": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Enable Azure AD RBAC for Kubernetes authorization."
+            }
+        }
+    },
+    "variables": {
+        "osSKU": "AzureLinux",
+        "serviceCidr": "10.0.0.0/16",
+        "dnsServiceIP": "10.0.0.10"
     },
     "resources": [
         {
-            "apiVersion": "2020-03-01",
             "type": "Microsoft.ContainerService/managedClusters",
-            "location": "[parameters('location')]",
+            "apiVersion": "2024-09-01",
             "name": "[parameters('clusterName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Base",
+                "tier": "[parameters('skuTier')]"
+            },
+            "identity": {
+                "type": "SystemAssigned"
+            },
             "properties": {
+                "kubernetesVersion": "[parameters('kubernetesVersion')]",
                 "dnsPrefix": "[parameters('dnsPrefix')]",
                 "agentPoolProfiles": [
                     {
-                        "name": "agentpool",
-                        "osDiskSizeGB": "[parameters('osDiskSizeGB')]",
-                        "count": "[parameters('agentCount')]",
+                        "name": "system",
+                        "count": "[parameters('minAgentCount')]",
+                        "minCount": "[parameters('minAgentCount')]",
+                        "maxCount": "[parameters('maxAgentCount')]",
                         "vmSize": "[parameters('agentVMSize')]",
-                        "osType": "[parameters('osType')]",
-                        "storageProfile": "ManagedDisks"
+                        "osDiskSizeGB": "[parameters('osDiskSizeGB')]",
+                        "osDiskType": "Managed",
+                        "osSKU": "[variables('osSKU')]",
+                        "osType": "Linux",
+                        "mode": "System",
+                        "enableAutoScaling": true,
+                        "type": "VirtualMachineScaleSets",
+                        "upgradeSettings": {
+                            "maxSurge": "10%"
+                        }
                     }
                 ],
-                "linuxProfile": {
-                    "adminUsername": "[parameters('linuxAdminUsername')]",
-                    "ssh": {
-                        "publicKeys": [
-                            {
-                                "keyData": "[parameters('sshRSAPublicKey')]"
-                            }
-                        ]
+                "networkProfile": {
+                    "networkPlugin": "[parameters('networkPlugin')]",
+                    "networkPluginMode": "overlay",
+                    "networkPolicy": "[parameters('networkPolicy')]",
+                    "networkDataplane": "[if(equals(parameters('networkPolicy'), 'cilium'), 'cilium', 'azure')]",
+                    "loadBalancerSku": "standard",
+                    "serviceCidr": "[variables('serviceCidr')]",
+                    "dnsServiceIP": "[variables('dnsServiceIP')]"
+                },
+                "aadProfile": {
+                    "managed": true,
+                    "enableAzureRBAC": "[parameters('enableAzureRBAC')]"
+                },
+                "oidcIssuerProfile": {
+                    "enabled": "[parameters('enableWorkloadIdentity')]"
+                },
+                "securityProfile": {
+                    "workloadIdentity": {
+                        "enabled": "[parameters('enableWorkloadIdentity')]"
                     }
                 },
-                "servicePrincipalProfile": {
-                    "clientId": "[parameters('servicePrincipalClientId')]",
-                    "Secret": "[parameters('servicePrincipalClientSecret')]"
+                "autoUpgradeProfile": {
+                    "upgradeChannel": "[if(parameters('enableAutoUpgrade'), 'patch', 'none')]",
+                    "nodeOSUpgradeChannel": "NodeImage"
+                },
+                "addonProfiles": {
+                    "azureKeyvaultSecretsProvider": {
+                        "enabled": true,
+                        "config": {
+                            "enableSecretRotation": "true"
+                        }
+                    },
+                    "omsAgent": {
+                        "enabled": false
+                    }
                 }
+            },
+            "tags": {
+                "Environment": "dev",
+                "ManagedBy": "ARM",
+                "Project": "aks-infra"
             }
         }
     ],
     "outputs": {
         "controlPlaneFQDN": {
             "type": "string",
-            "value": "[reference(parameters('clusterName')).fqdn]"
+            "value": "[reference(resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))).fqdn]"
+        },
+        "oidcIssuerUrl": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))).oidcIssuerProfile.issuerURL]"
+        },
+        "clusterIdentityPrincipalId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName')), '2024-09-01', 'Full').identity.principalId]"
+        },
+        "kubectlCommand": {
+            "type": "string",
+            "value": "[concat('az aks get-credentials --resource-group ', resourceGroup().name, ' --name ', parameters('clusterName'))]"
         }
     }
 }
