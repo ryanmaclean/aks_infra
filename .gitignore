@@ -1,1 +1,4 @@
 .beads/
+.terraform/
+*.tfstate
+*.tfstate.*

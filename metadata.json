@@ -1,9 +1,0 @@
-{
-    "$schema": "https://aka.ms/azure-quickstart-templates-metadata-schema#",
-    "type": "QuickStart",
-    "itemDisplayName": "Azure Kubernetes Service (AKS)",
-    "description": "Create a managed Kubernetes cluster in Azure using AKS",
-    "summary": "Deploy a managed cluster with Azure Kubernetes Service (AKS)",
-    "githubUsername": "ryanmaclean",
-    "dateUpdated": "2020-06-17"
-}
