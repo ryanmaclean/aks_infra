@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: workload-identity-test-pod
+  namespace: workload-identity-test
+  labels:
+    app: workload-identity-test
+    # Required label for Azure Workload Identity webhook
+    azure.workload.identity/use: "true"
+spec:
+  serviceAccountName: workload-identity-sa
+  containers:
+    - name: azure-cli
+      # Using Azure CLI image for testing authentication
+      image: mcr.microsoft.com/azure-cli:latest
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "=== Azure Workload Identity Test ==="
+          echo ""
+          echo "Checking environment variables set by Workload Identity webhook..."
+          echo "AZURE_CLIENT_ID: $AZURE_CLIENT_ID"
+          echo "AZURE_TENANT_ID: $AZURE_TENANT_ID"
+          echo "AZURE_FEDERATED_TOKEN_FILE: $AZURE_FEDERATED_TOKEN_FILE"
+          echo "AZURE_AUTHORITY_HOST: $AZURE_AUTHORITY_HOST"
+          echo ""
+
+          if [ -f "$AZURE_FEDERATED_TOKEN_FILE" ]; then
+            echo "Federated token file exists: $AZURE_FEDERATED_TOKEN_FILE"
+            echo "Token file size: $(wc -c < $AZURE_FEDERATED_TOKEN_FILE) bytes"
+          else
+            echo "ERROR: Federated token file not found!"
+            exit 1
+          fi
+
+          echo ""
+          echo "Attempting to authenticate to Azure using Workload Identity..."
+          az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" \
+            --service-principal \
+            -u "$AZURE_CLIENT_ID" \
+            -t "$AZURE_TENANT_ID"
+
+          if [ $? -eq 0 ]; then
+            echo ""
+            echo "SUCCESS: Authentication to Azure successful!"
+            echo ""
+            echo "Verifying identity..."
+            az account show
+            echo ""
+            echo "=== Test Passed ==="
+          else
+            echo ""
+            echo "FAILED: Could not authenticate to Azure"
+            exit 1
+          fi
+
+          # Keep pod running for inspection
+          echo ""
+          echo "Test completed. Pod will remain running for inspection."
+          sleep infinity
+      resources:
+        limits:
+          cpu: "200m"
+          memory: "256Mi"
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/os: linux

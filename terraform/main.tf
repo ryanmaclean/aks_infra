@@ -1,5 +1,17 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.75.0"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.45.0"
+    }
+  }
+}
+
 provider "azurerm" {
-  version = "=2.10.0"
   features {}
 }
 
@@ -13,7 +25,11 @@ resource "azurerm_kubernetes_cluster" "default_aks" {
   resource_group_name = azurerm_resource_group.default_rg.name
   location            = azurerm_resource_group.default_rg.location
   dns_prefix          = "default-dev"
-  kubernetes_version  = "1.18.2"
+  kubernetes_version  = "1.28"
+
+  # Enable Azure Workload Identity
+  oidc_issuer_enabled       = true
+  workload_identity_enabled = true
 
   windows_profile {
     admin_username = var.win_user
@@ -31,16 +47,15 @@ resource "azurerm_kubernetes_cluster" "default_aks" {
     vm_size        = "Standard_D2_v3"
   }
 
-  service_principal {
-    client_id     = var.ad_sp_id
-    client_secret = var.ad_sp_pass
+  # Use system-assigned managed identity for cluster operations
+  identity {
+    type = "SystemAssigned"
   }
 
   tags = {
-    env = "dev",
+    env   = "dev"
     owner = "ryanmaclean"
   }
-
 }
 
 resource "azurerm_kubernetes_cluster_node_pool" "win1" {
@@ -75,4 +90,26 @@ resource "azurerm_virtual_network" "default" {
     env = "dev"
     owner = "ryanmaclean"
   }
+}
+
+# Outputs for Workload Identity configuration
+output "oidc_issuer_url" {
+  description = "OIDC issuer URL for the AKS cluster"
+  value       = azurerm_kubernetes_cluster.default_aks.oidc_issuer_url
+}
+
+output "kube_config" {
+  description = "Kubernetes configuration for kubectl"
+  value       = azurerm_kubernetes_cluster.default_aks.kube_config_raw
+  sensitive   = true
+}
+
+output "cluster_name" {
+  description = "AKS cluster name"
+  value       = azurerm_kubernetes_cluster.default_aks.name
+}
+
+output "resource_group_name" {
+  description = "Resource group name"
+  value       = azurerm_resource_group.default_rg.name
 }

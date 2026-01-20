@@ -1,0 +1,221 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workload-identity-test-script
+  namespace: workload-identity-test
+data:
+  test_auth.py: |
+    #!/usr/bin/env python3
+    """
+    Azure Workload Identity Authentication Test
+
+    This script tests that a Kubernetes pod can authenticate to Azure
+    using federated credentials (Workload Identity) without storing secrets.
+    """
+
+    import os
+    import sys
+    import json
+    from datetime import datetime
+
+    def check_environment():
+        """Check that required environment variables are set by the webhook."""
+        print("=" * 60)
+        print("Checking Workload Identity Environment Variables")
+        print("=" * 60)
+
+        required_vars = [
+            "AZURE_CLIENT_ID",
+            "AZURE_TENANT_ID",
+            "AZURE_FEDERATED_TOKEN_FILE",
+            "AZURE_AUTHORITY_HOST"
+        ]
+
+        env_status = {}
+        all_present = True
+
+        for var in required_vars:
+            value = os.environ.get(var)
+            if value:
+                # Mask sensitive values
+                display_value = value if var != "AZURE_FEDERATED_TOKEN_FILE" else f"[FILE: {value}]"
+                print(f"  {var}: {display_value}")
+                env_status[var] = True
+            else:
+                print(f"  {var}: NOT SET")
+                env_status[var] = False
+                all_present = False
+
+        print()
+        return all_present
+
+    def check_token_file():
+        """Check that the federated token file exists and is readable."""
+        print("=" * 60)
+        print("Checking Federated Token File")
+        print("=" * 60)
+
+        token_file = os.environ.get("AZURE_FEDERATED_TOKEN_FILE")
+        if not token_file:
+            print("  ERROR: AZURE_FEDERATED_TOKEN_FILE not set")
+            return False
+
+        if not os.path.exists(token_file):
+            print(f"  ERROR: Token file does not exist: {token_file}")
+            return False
+
+        try:
+            with open(token_file, 'r') as f:
+                token = f.read().strip()
+
+            print(f"  Token file exists: {token_file}")
+            print(f"  Token length: {len(token)} characters")
+
+            # Parse JWT header (base64 decode first part)
+            import base64
+            parts = token.split('.')
+            if len(parts) == 3:
+                # Add padding if needed
+                header_b64 = parts[0] + '=' * (4 - len(parts[0]) % 4)
+                header = json.loads(base64.urlsafe_b64decode(header_b64))
+                print(f"  Token type: {header.get('typ', 'unknown')}")
+                print(f"  Algorithm: {header.get('alg', 'unknown')}")
+            print()
+            return True
+        except Exception as e:
+            print(f"  ERROR reading token file: {e}")
+            return False
+
+    def test_azure_authentication():
+        """Test authentication to Azure using Workload Identity."""
+        print("=" * 60)
+        print("Testing Azure Authentication with Workload Identity")
+        print("=" * 60)
+
+        try:
+            from azure.identity import DefaultAzureCredential
+            from azure.mgmt.resource import SubscriptionClient
+
+            print("  Using DefaultAzureCredential (auto-detects Workload Identity)")
+
+            # DefaultAzureCredential will automatically use Workload Identity
+            # when running in a properly configured AKS pod
+            credential = DefaultAzureCredential()
+
+            print("  Attempting to get access token...")
+
+            # Get a token to verify authentication works
+            token = credential.get_token("https://management.azure.com/.default")
+
+            print(f"  Token acquired successfully!")
+            print(f"  Token expires at: {datetime.fromtimestamp(token.expires_on)}")
+            print()
+
+            # Try to list subscriptions as a further verification
+            print("  Verifying access by listing subscriptions...")
+            subscription_client = SubscriptionClient(credential)
+
+            subscriptions = list(subscription_client.subscriptions.list())
+            if subscriptions:
+                print(f"  Found {len(subscriptions)} subscription(s):")
+                for sub in subscriptions[:3]:  # Show max 3
+                    print(f"    - {sub.display_name} ({sub.subscription_id[:8]}...)")
+            else:
+                print("  No subscriptions accessible (may need role assignments)")
+
+            print()
+            return True
+
+        except ImportError:
+            print("  ERROR: Azure SDK not installed")
+            print("  Install with: pip install azure-identity azure-mgmt-resource")
+            return False
+        except Exception as e:
+            print(f"  ERROR: Authentication failed: {e}")
+            return False
+
+    def main():
+        """Main test execution."""
+        print()
+        print("=" * 60)
+        print("  Azure Workload Identity Authentication Test")
+        print(f"  Timestamp: {datetime.now().isoformat()}")
+        print("=" * 60)
+        print()
+
+        results = {
+            "environment_check": check_environment(),
+            "token_file_check": check_token_file(),
+            "authentication_test": test_azure_authentication()
+        }
+
+        print("=" * 60)
+        print("Test Results Summary")
+        print("=" * 60)
+
+        all_passed = True
+        for test_name, passed in results.items():
+            status = "PASSED" if passed else "FAILED"
+            symbol = "[OK]" if passed else "[FAIL]"
+            print(f"  {symbol} {test_name}: {status}")
+            if not passed:
+                all_passed = False
+
+        print()
+        if all_passed:
+            print("SUCCESS: All Workload Identity tests passed!")
+            print()
+            return 0
+        else:
+            print("FAILURE: Some Workload Identity tests failed!")
+            print()
+            return 1
+
+    if __name__ == "__main__":
+        sys.exit(main())
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: workload-identity-test-python
+  namespace: workload-identity-test
+  labels:
+    app: workload-identity-test-python
+    azure.workload.identity/use: "true"
+spec:
+  serviceAccountName: workload-identity-sa
+  containers:
+    - name: python-test
+      image: python:3.11-slim
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Installing Azure SDK..."
+          pip install -q azure-identity azure-mgmt-resource
+
+          echo "Running Workload Identity test..."
+          python /scripts/test_auth.py
+          EXIT_CODE=$?
+
+          echo ""
+          echo "Test completed with exit code: $EXIT_CODE"
+          echo "Pod will remain running for inspection."
+          sleep infinity
+      volumeMounts:
+        - name: test-script
+          mountPath: /scripts
+      resources:
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+        requests:
+          cpu: "100m"
+          memory: "256Mi"
+  volumes:
+    - name: test-script
+      configMap:
+        name: workload-identity-test-script
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/os: linux

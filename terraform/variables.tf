@@ -1,17 +1,23 @@
-variable ad_sp_pass {
-  description = "Password used for service principal"
-  type = string
+variable "win_user" {
+  description = "Windows node pool admin username"
+  type        = string
 }
 
-variable ad_sp_id {
-  description = "Service principal ID"
-  type = string
+variable "win_pass" {
+  description = "Windows node pool admin password"
+  type        = string
+  sensitive   = true
 }
 
-variable win_user {
-  type = string
+# Variables for Workload Identity test configuration
+variable "workload_identity_namespace" {
+  description = "Kubernetes namespace for workload identity test"
+  type        = string
+  default     = "workload-identity-test"
 }
 
-variable win_pass {
-  type = string
+variable "workload_identity_service_account" {
+  description = "Kubernetes service account name for workload identity"
+  type        = string
+  default     = "workload-identity-sa"
 }
