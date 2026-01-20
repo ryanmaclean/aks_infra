@@ -42,7 +42,7 @@ variable "owner" {
 variable "kubernetes_version" {
   description = "Kubernetes version for AKS cluster (use 'az aks get-versions' for supported versions)"
   type        = string
-  default     = "1.32"  # LTS version with support until 2026
+  default     = "1.32" # LTS version with support until 2026
 }
 
 variable "dns_prefix" {
