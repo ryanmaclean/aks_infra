@@ -85,7 +85,7 @@ Uses OIDC for passwordless Azure authentication.
 
 **Estimated cost**: ~$150-200/month (vs ~$500 unoptimized)
 
-## Observability (LETS'CS)
+## Observability (LETS:CS)
 
 | Signal | Source | Dashboard |
 |--------|--------|-----------|
