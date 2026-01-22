@@ -1,9 +1,14 @@
-.PHONY: deploy datadog app repos lint format test help
+.PHONY: deploy datadog app repos lint format test help kind kind-delete kind-deploy
 
 DEPLOY_CLI = python k8s/deploy.py
 
 help:
 	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Local development (Kind):"
+	@echo "  kind         Create Kind cluster and deploy app"
+	@echo "  kind-deploy  Deploy app to existing Kind cluster"
+	@echo "  kind-delete  Delete Kind cluster"
 	@echo ""
 	@echo "Deployment targets:"
 	@echo "  deploy     Run full deployment (repos + datadog + app)"
@@ -42,3 +47,13 @@ format:
 
 test:
 	pytest k8s/ -v
+
+# Kind local development ($0/month)
+kind:
+	./kind/setup.sh
+
+kind-deploy:
+	kubectl apply -k kind/
+
+kind-delete:
+	./kind/teardown.sh
