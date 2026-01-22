@@ -58,7 +58,7 @@ To enable the Windows node pool, set `enable_windows_node_pool = true` in your `
 ### Sample Application
 
 ```bash
-./k8s/deploy-sample-app.sh
+python k8s/deploy_sample_app.py
 ```
 
 Deploys the AKS Store Demo (microservices sample with AI integration).
@@ -67,13 +67,13 @@ Deploys the AKS Store Demo (microservices sample with AI integration).
 
 ```bash
 # Initialize Helm repos
-./k8s/helm_repo_init.sh
+python k8s/helm_repo_init.py
 
-# Install Datadog Operator
-./k8s/helm_dd_install.sh
+# Install Datadog agent
+DD_API_KEY=your-key python k8s/helm_dd_install.py
 ```
 
-Uses the Datadog Operator for automated agent lifecycle management.
+Uses the Datadog Helm chart for automated agent lifecycle management.
 
 ## Files
 
@@ -84,12 +84,16 @@ Uses the Datadog Operator for automated agent lifecycle management.
 | `terraform/variables.tf` | Input variables |
 | `terraform/outputs.tf` | Cluster outputs (kubeconfig, etc.) |
 | `azuredeploy.json` | ARM template for quick deployment |
-| `k8s/` | Kubernetes manifests and scripts |
-| `k8s/datadog-values.yaml` | Datadog Operator Helm values |
+| `k8s/` | Kubernetes manifests and deployment scripts |
+| `k8s/helm_repo_init.py` | Initialize Helm repositories |
+| `k8s/helm_dd_install.py` | Install Datadog via Helm |
+| `k8s/deploy_sample_app.py` | Deploy AKS Store Demo |
+| `k8s/datadog-values.yaml` | Datadog Helm values |
 | `k8s/aks-store-demo.yaml` | Sample microservices application |
 
 ## Requirements
 
+- Python 3.11+
 - Azure CLI 2.50+
 - OpenTofu 1.6+ or Terraform 1.6+
 - kubectl
