@@ -1,6 +1,0 @@
-# AKS deployment CLI dependencies
-pyyaml>=6.0
-
-# Optional: Datadog instrumentation (for full observability)
-ddtrace>=2.0
-datadog>=0.49
