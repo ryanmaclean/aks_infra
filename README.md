@@ -38,17 +38,20 @@ The Terraform deployment creates:
 
 ```
 Resource Group
-├── AKS Cluster (1.31)
-│   ├── System Node Pool (ARM64)
-│   ├── User Node Pool (auto-provisioned)
+├── AKS Cluster (1.32)
+│   ├── System Node Pool (Linux)
+│   ├── Windows Node Pool (optional, disabled by default)
 │   └── Cilium CNI + Network Policies
 ├── Virtual Network
-│   ├── AKS Subnet (10.1.0.0/16)
+│   ├── AKS Subnet (10.88.0.0/22)
+│   ├── Windows Subnet (10.88.88.0/24)
 │   └── Service endpoints
 ├── User-Assigned Managed Identity
 ├── Azure AD Application (Workload Identity)
 └── Log Analytics Workspace
 ```
+
+To enable the Windows node pool, set `enable_windows_node_pool = true` in your `terraform.tfvars`.
 
 ## Kubernetes Deployments
 
