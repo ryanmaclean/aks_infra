@@ -80,7 +80,7 @@ datadog:
 # Cluster Agent configuration
 clusterAgent:
   enabled: true
-  replicas: 2
+  replicas: 1 # Single replica for demo - saves resources
 
   image:
     repository: gcr.io/datadoghq/cluster-agent
@@ -89,11 +89,11 @@ clusterAgent:
 
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m # Reduced for demo
+      memory: 128Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 200m
+      memory: 256Mi
 
   # Metrics provider for HPA
   metricsProvider:
@@ -114,34 +114,34 @@ agents:
     tag: "7.60.0"
     pullPolicy: IfNotPresent
 
-  # Container resources
+  # Container resources - optimized for demo
   containers:
     agent:
       resources:
         requests:
-          cpu: 200m
-          memory: 256Mi
+          cpu: 100m # Reduced for smaller nodes
+          memory: 128Mi
         limits:
-          cpu: 500m
-          memory: 512Mi
+          cpu: 250m
+          memory: 256Mi
 
     processAgent:
       resources:
         requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
           cpu: 100m
           memory: 128Mi
-        limits:
-          cpu: 250m
-          memory: 256Mi
 
     traceAgent:
       resources:
         requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
           cpu: 100m
           memory: 128Mi
-        limits:
-          cpu: 250m
-          memory: 256Mi
 
   # Tolerations to run on all nodes
   tolerations:
@@ -160,11 +160,11 @@ kube-state-metrics:
 
   resources:
     requests:
+      cpu: 50m # Reduced for demo
+      memory: 64Mi
+    limits:
       cpu: 100m
       memory: 128Mi
-    limits:
-      cpu: 250m
-      memory: 256Mi
 
 # Provider-specific settings for Azure
 providers:

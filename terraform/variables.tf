@@ -52,9 +52,9 @@ variable "dns_prefix" {
 }
 
 variable "aks_sku_tier" {
-  description = "SKU tier for AKS (Free, Standard, Premium)"
+  description = "SKU tier for AKS (Free, Standard, Premium). Free for demos, Standard for uptime SLA."
   type        = string
-  default     = "Standard"
+  default     = "Free" # No uptime SLA, saves ~$73/month
 }
 
 # ============================================================================
@@ -62,15 +62,15 @@ variable "aks_sku_tier" {
 # ============================================================================
 
 variable "default_node_pool_vm_size" {
-  description = "VM size for the default (system) node pool"
+  description = "VM size for the default (system) node pool. D2s_v5 sufficient for demos."
   type        = string
-  default     = "Standard_D4s_v5"
+  default     = "Standard_D2s_v5" # 2 vCPU, 8GB - half the cost of D4s_v5
 }
 
 variable "default_node_pool_min_count" {
-  description = "Minimum number of nodes in the default pool"
+  description = "Minimum number of nodes in the default pool. 1 for demos, 2+ for HA."
   type        = number
-  default     = 2
+  default     = 1 # Single node for demo, autoscales up if needed
 }
 
 variable "default_node_pool_max_count" {

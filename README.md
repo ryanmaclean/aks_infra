@@ -75,10 +75,26 @@ Uses OIDC for passwordless Azure authentication.
 
 ## Cost Optimization
 
-- Single replica per service (demo mode)
-- Minimal resource requests (50m CPU, 64Mi memory)
-- No traffic generator pod (virtual-customer removed)
-- System node pool only (no Windows nodes by default)
+- **AKS SKU**: Free tier (no uptime SLA) - saves ~$73/month
+- **VM Size**: D2s_v5 (2 vCPU, 8GB) - half the cost of D4s_v5
+- **Node Count**: Min 1, autoscales to 5 - single node for idle demo
+- **Log Analytics**: 7-day retention, 1GB/day cap
+- **Datadog**: Single cluster agent, reduced resource requests
+- **App**: Single replica per service, minimal requests (50m CPU, 64Mi)
+- **No Windows nodes** by default
+
+**Estimated cost**: ~$150-200/month (vs ~$500 unoptimized)
+
+## Observability (LETS'CS)
+
+| Signal | Source | Dashboard |
+|--------|--------|-----------|
+| **L**atency | Datadog APM traces | APM > Services |
+| **E**rrors | Container logs + APM errors | Logs > Explorer |
+| **T**ransactions | APM spans + custom metrics | APM > Traces |
+| **S**aturation | kube-state-metrics, process agent | Infra > Kubernetes |
+| **C**osts | Azure Cost Management | Portal > Cost Analysis |
+| **S**ecurity | Pod Security Standards, NetworkPolicy | (runtime agent disabled) |
 
 ## Development
 
