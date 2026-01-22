@@ -58,6 +58,9 @@ To enable the Windows node pool, set `enable_windows_node_pool = true` in your `
 ### Deployment CLI
 
 ```bash
+# Install dependencies
+pip install -r k8s/requirements.txt
+
 # Add Helm repositories
 python k8s/deploy.py repos
 
@@ -71,6 +74,11 @@ python k8s/deploy.py app
 python k8s/deploy.py all --api-key YOUR_KEY
 ```
 
+The deploy script is instrumented to send traces, metrics, and structured logs to Datadog:
+- **Traces**: Each command creates a span in APM
+- **Metrics**: `aks-deploy.*` metrics (duration, success/failure counts)
+- **Logs**: JSON structured logs when `DD_LOGS_INJECTION=true`
+
 ## Files
 
 | Path | Description |
@@ -81,7 +89,8 @@ python k8s/deploy.py all --api-key YOUR_KEY
 | `terraform/outputs.tf` | Cluster outputs (kubeconfig, etc.) |
 | `azuredeploy.json` | ARM template for quick deployment |
 | `k8s/` | Kubernetes manifests and deployment scripts |
-| `k8s/deploy.py` | Deployment CLI (repos, datadog, app) |
+| `k8s/deploy.py` | Deployment CLI with Datadog instrumentation |
+| `k8s/requirements.txt` | Python dependencies |
 | `k8s/datadog-values.yaml` | Datadog Helm values |
 | `k8s/aks-store-demo.yaml` | Sample microservices application |
 
