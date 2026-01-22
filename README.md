@@ -41,6 +41,19 @@ The sample application enforces:
 - **Image pinning**: Specific versions, no `:latest` tags
 - **Seccomp**: RuntimeDefault profile on all pods
 
+## Local Development (KIND)
+
+Run the full stack locally at **$0/month**:
+
+```bash
+# Prerequisites: docker, kind, kubectl
+make kind           # Create cluster + deploy app
+# Access: http://localhost:8080
+
+make kind-cilium    # With Cilium for NetworkPolicy
+make kind-delete    # Cleanup
+```
+
 ## Files
 
 ```
@@ -49,9 +62,12 @@ The sample application enforces:
 │   ├── azure_ad.tf      # Workload Identity, RBAC
 │   └── variables.tf     # Configuration
 ├── k8s/
-│   ├── deploy.py        # Deployment CLI
+│   ├── deploy.py        # Deployment CLI (instrumented)
 │   ├── aks-store-demo.yaml  # Sample app (hardened)
 │   └── datadog-values.yaml  # Monitoring config
+├── kind/
+│   ├── setup.py         # Local dev CLI
+│   └── kustomization.yaml  # NodePort overlay
 ├── .github/workflows/
 │   └── ci.yml           # Lint, plan, deploy
 └── Makefile             # Common operations
