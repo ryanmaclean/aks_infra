@@ -1,11 +1,11 @@
 # Kind cluster configuration for local development
-# Usage: kind create cluster --config kind-config.yaml --name aks-store-local
+# Usage: kind create cluster --config kind/kind-config.yaml --name aks-store-local
 apiVersion: kind.x-k8s.io/v1alpha4
 kind: Cluster
 nodes:
   - role: control-plane
     extraPortMappings:
-      # Map NodePort 30080 to host port 8080 for store-front access
+      # Store front at localhost:8080
       - containerPort: 30080
         hostPort: 8080
         protocol: TCP
@@ -15,3 +15,6 @@ nodes:
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
+networking:
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
