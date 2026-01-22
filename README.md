@@ -102,6 +102,74 @@ The deploy script is instrumented to send traces, metrics, and structured logs t
 - kubectl
 - Helm 3.x (for Datadog)
 
+## CI/CD
+
+GitHub Actions workflows for automated linting, planning, and deployment.
+
+### Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `lint.yml` | PR to main | Lints Python (ruff) and Terraform (fmt, validate) |
+| `terraform-plan.yml` | PR to main | Runs `terraform plan` and posts to PR |
+| `deploy.yml` | Push to main | Applies Terraform and deploys application |
+
+### Secrets Setup
+
+Configure these secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `AZURE_CLIENT_ID` | Yes | Service principal or managed identity client ID |
+| `AZURE_TENANT_ID` | Yes | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Yes | Azure subscription ID |
+| `DD_API_KEY` | No | Datadog API key (skips Datadog deploy if not set) |
+
+#### Azure OIDC Setup
+
+The workflows use OIDC (OpenID Connect) for passwordless Azure authentication:
+
+1. **Create an Azure AD App Registration**:
+   ```bash
+   az ad app create --display-name "github-actions-aks"
+   ```
+
+2. **Create a federated credential** for GitHub Actions:
+   ```bash
+   # Get the app's object ID
+   APP_OBJ_ID=$(az ad app list --display-name "github-actions-aks" --query "[0].id" -o tsv)
+
+   # Create federated credential for main branch
+   az ad app federated-credential create --id $APP_OBJ_ID --parameters '{
+     "name": "github-main",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "subject": "repo:YOUR_ORG/YOUR_REPO:ref:refs/heads/main",
+     "audiences": ["api://AzureADTokenExchange"]
+   }'
+
+   # Create federated credential for PRs
+   az ad app federated-credential create --id $APP_OBJ_ID --parameters '{
+     "name": "github-pr",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "subject": "repo:YOUR_ORG/YOUR_REPO:pull_request",
+     "audiences": ["api://AzureADTokenExchange"]
+   }'
+   ```
+
+3. **Grant permissions** to the service principal:
+   ```bash
+   # Create service principal
+   SP_ID=$(az ad sp create --id $APP_OBJ_ID --query "id" -o tsv)
+
+   # Assign Contributor role on subscription
+   az role assignment create \
+     --assignee $SP_ID \
+     --role "Contributor" \
+     --scope "/subscriptions/YOUR_SUBSCRIPTION_ID"
+   ```
+
+4. **Add secrets** to GitHub repository with the client ID, tenant ID, and subscription ID.
+
 ## Modernization Notes (2026)
 
 This repo was updated from 2020-era configurations:
