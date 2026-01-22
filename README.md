@@ -1,205 +1,95 @@
 # Azure AKS Infrastructure
 
-Modern AKS infrastructure using current Azure best practices (January 2026).
+Secure, cost-optimized AKS infrastructure for demos (January 2026).
 
-## Deployment Options
-
-### Terraform (Recommended)
-
-Full-featured AKS deployment with:
-- **AKS 1.31** with system and user node pools
-- **Managed Identity** and **Workload Identity** for secure Azure resource access
-- **Cilium CNI** with eBPF for networking and network policies
-- **Node Auto-Provisioning (NAP)** for automatic scaling
-- **ARM64 support** for cost-efficient workloads
+## Quick Start
 
 ```bash
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your values
+# Edit terraform.tfvars
 
 terraform init
-terraform plan
 terraform apply
+
+# Deploy sample app
+pip install pyyaml
+python k8s/deploy.py app
 ```
-
-### ARM Template (Quick Start)
-
-Simpler deployment for getting started:
-- Linux node pool with managed identity
-- Standard Load Balancer
-- Azure CNI networking
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fryanmaclean%2Faks_infra%2Fmaster%2Fazuredeploy.json)
 
 ## Architecture
 
-The Terraform deployment creates:
-
 ```
 Resource Group
-├── AKS Cluster (1.32)
+├── AKS Cluster (1.31)
 │   ├── System Node Pool (Linux)
-│   ├── Windows Node Pool (optional, disabled by default)
 │   └── Cilium CNI + Network Policies
-├── Virtual Network
-│   ├── AKS Subnet (10.88.0.0/22)
-│   ├── Windows Subnet (10.88.88.0/24)
-│   └── Service endpoints
+├── Virtual Network (10.88.0.0/16)
 ├── User-Assigned Managed Identity
-├── Azure AD Application (Workload Identity)
+├── Workload Identity (OIDC)
 └── Log Analytics Workspace
 ```
 
-To enable the Windows node pool, set `enable_windows_node_pool = true` in your `terraform.tfvars`.
+## Security Hardening
 
-## Kubernetes Deployments
+The sample application enforces:
 
-### Deployment CLI
-
-```bash
-# Install dependencies
-pip install -r k8s/requirements.txt
-
-# Add Helm repositories
-python k8s/deploy.py repos
-
-# Install Datadog monitoring
-python k8s/deploy.py datadog --api-key YOUR_KEY
-
-# Deploy sample app (AKS Store Demo)
-python k8s/deploy.py app
-
-# Or run all steps at once
-python k8s/deploy.py all --api-key YOUR_KEY
-```
-
-The deploy script is instrumented to send traces, metrics, and structured logs to Datadog:
-- **Traces**: Each command creates a span in APM
-- **Metrics**: `aks-deploy.*` metrics (duration, success/failure counts)
-- **Logs**: JSON structured logs when `DD_LOGS_INJECTION=true`
+- **Pod Security Standards**: `restricted` policy on namespace
+- **securityContext**: runAsNonRoot, readOnlyRootFilesystem, drop ALL capabilities
+- **NetworkPolicy**: Default-deny with explicit allow rules per service
+- **Secrets**: Credentials via K8s Secrets (not hardcoded)
+- **Image pinning**: Specific versions, no `:latest` tags
+- **Seccomp**: RuntimeDefault profile on all pods
 
 ## Files
 
-| Path | Description |
-|------|-------------|
-| `terraform/` | OpenTofu/Terraform configurations |
-| `terraform/main.tf` | AKS cluster, networking, identity |
-| `terraform/variables.tf` | Input variables |
-| `terraform/outputs.tf` | Cluster outputs (kubeconfig, etc.) |
-| `azuredeploy.json` | ARM template for quick deployment |
-| `k8s/` | Kubernetes manifests and deployment scripts |
-| `k8s/deploy.py` | Deployment CLI with Datadog instrumentation |
-| `k8s/requirements.txt` | Python dependencies |
-| `k8s/datadog-values.yaml` | Datadog Helm values |
-| `k8s/aks-store-demo.yaml` | Sample microservices application |
-
-## Requirements
-
-- Python 3.11+
-- Azure CLI 2.50+
-- OpenTofu 1.6+ or Terraform 1.6+
-- kubectl
-- Helm 3.x (for Datadog)
+```
+├── terraform/           # Infrastructure as Code
+│   ├── main.tf          # AKS cluster, networking
+│   ├── azure_ad.tf      # Workload Identity, RBAC
+│   └── variables.tf     # Configuration
+├── k8s/
+│   ├── deploy.py        # Deployment CLI
+│   ├── aks-store-demo.yaml  # Sample app (hardened)
+│   └── datadog-values.yaml  # Monitoring config
+├── .github/workflows/
+│   └── ci.yml           # Lint, plan, deploy
+└── Makefile             # Common operations
+```
 
 ## CI/CD
 
-GitHub Actions workflows for automated linting, planning, and deployment.
+Single workflow (`ci.yml`) handles:
+- **PR**: Lint + Terraform plan
+- **Push to main**: Terraform apply + deploy app
 
-### Workflows
+### Required Secrets
 
-| Workflow | Trigger | Description |
-|----------|---------|-------------|
-| `lint.yml` | PR to main | Lints Python (ruff) and Terraform (fmt, validate) |
-| `terraform-plan.yml` | PR to main | Runs `terraform plan` and posts to PR |
-| `deploy.yml` | Push to main | Applies Terraform and deploys application |
+| Secret | Description |
+|--------|-------------|
+| `AZURE_CLIENT_ID` | App registration client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Subscription ID |
 
-### Secrets Setup
+Uses OIDC for passwordless Azure authentication.
 
-Configure these secrets in **Settings → Secrets and variables → Actions**:
+## Cost Optimization
 
-| Secret | Required | Description |
-|--------|----------|-------------|
-| `AZURE_CLIENT_ID` | Yes | Service principal or managed identity client ID |
-| `AZURE_TENANT_ID` | Yes | Azure AD tenant ID |
-| `AZURE_SUBSCRIPTION_ID` | Yes | Azure subscription ID |
-| `DD_API_KEY` | No | Datadog API key (skips Datadog deploy if not set) |
-
-#### Azure OIDC Setup
-
-The workflows use OIDC (OpenID Connect) for passwordless Azure authentication:
-
-1. **Create an Azure AD App Registration**:
-   ```bash
-   az ad app create --display-name "github-actions-aks"
-   ```
-
-2. **Create a federated credential** for GitHub Actions:
-   ```bash
-   # Get the app's object ID
-   APP_OBJ_ID=$(az ad app list --display-name "github-actions-aks" --query "[0].id" -o tsv)
-
-   # Create federated credential for main branch
-   az ad app federated-credential create --id $APP_OBJ_ID --parameters '{
-     "name": "github-main",
-     "issuer": "https://token.actions.githubusercontent.com",
-     "subject": "repo:YOUR_ORG/YOUR_REPO:ref:refs/heads/main",
-     "audiences": ["api://AzureADTokenExchange"]
-   }'
-
-   # Create federated credential for PRs
-   az ad app federated-credential create --id $APP_OBJ_ID --parameters '{
-     "name": "github-pr",
-     "issuer": "https://token.actions.githubusercontent.com",
-     "subject": "repo:YOUR_ORG/YOUR_REPO:pull_request",
-     "audiences": ["api://AzureADTokenExchange"]
-   }'
-   ```
-
-3. **Grant permissions** to the service principal:
-   ```bash
-   # Create service principal
-   SP_ID=$(az ad sp create --id $APP_OBJ_ID --query "id" -o tsv)
-
-   # Assign Contributor role on subscription
-   az role assignment create \
-     --assignee $SP_ID \
-     --role "Contributor" \
-     --scope "/subscriptions/YOUR_SUBSCRIPTION_ID"
-   ```
-
-4. **Add secrets** to GitHub repository with the client ID, tenant ID, and subscription ID.
-
-## Modernization Notes (2026)
-
-This repo was updated from 2020-era configurations:
-
-- **Identity**: Service Principal → Managed Identity + Workload Identity
-- **Provider**: AzureRM 3.x → 4.x (breaking changes in resource attributes)
-- **Networking**: Basic Azure CNI → Cilium with eBPF overlay
-- **Nodes**: Static pools → Node Auto-Provisioning, ARM64 support
-- **Observability**: Datadog DaemonSet → Datadog Operator
+- Single replica per service (demo mode)
+- Minimal resource requests (50m CPU, 64Mi memory)
+- No traffic generator pod (virtual-customer removed)
+- System node pool only (no Windows nodes by default)
 
 ## Development
 
-### Pre-commit Hooks
-
-This repo uses [pre-commit](https://pre-commit.com/) for code quality checks:
-
-- **ruff**: Python linting and formatting
-- **black**: Python code formatting
-- **mypy**: Python type checking
-- **terraform_fmt**: Terraform formatting
-
-Setup:
-
 ```bash
+# Install pre-commit hooks
 pip install pre-commit
 pre-commit install
-```
 
-Run manually on all files:
+# Run linting
+make lint
 
-```bash
-pre-commit run --all-files
+# Deploy to cluster
+make deploy-all DD_API_KEY=xxx
 ```

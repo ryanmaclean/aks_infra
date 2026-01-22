@@ -1,9 +1,0 @@
-{
-    "$schema": "https://aka.ms/azure-quickstart-templates-metadata-schema#",
-    "type": "QuickStart",
-    "itemDisplayName": "Azure Kubernetes Service (AKS)",
-    "description": "Create a managed Kubernetes cluster in Azure using AKS with managed identity",
-    "summary": "Deploy a managed AKS cluster with modern best practices including managed identity, Kubernetes 1.31, and Standard Load Balancer",
-    "githubUsername": "ryanmaclean",
-    "dateUpdated": "2026-01-22"
-}
