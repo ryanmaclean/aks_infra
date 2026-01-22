@@ -55,25 +55,21 @@ To enable the Windows node pool, set `enable_windows_node_pool = true` in your `
 
 ## Kubernetes Deployments
 
-### Sample Application
+### Deployment CLI
 
 ```bash
-python k8s/deploy_sample_app.py
+# Add Helm repositories
+python k8s/deploy.py repos
+
+# Install Datadog monitoring
+python k8s/deploy.py datadog --api-key YOUR_KEY
+
+# Deploy sample app (AKS Store Demo)
+python k8s/deploy.py app
+
+# Or run all steps at once
+python k8s/deploy.py all --api-key YOUR_KEY
 ```
-
-Deploys the AKS Store Demo (microservices sample with AI integration).
-
-### Datadog Monitoring
-
-```bash
-# Initialize Helm repos
-python k8s/helm_repo_init.py
-
-# Install Datadog agent
-DD_API_KEY=your-key python k8s/helm_dd_install.py
-```
-
-Uses the Datadog Helm chart for automated agent lifecycle management.
 
 ## Files
 
@@ -85,9 +81,7 @@ Uses the Datadog Helm chart for automated agent lifecycle management.
 | `terraform/outputs.tf` | Cluster outputs (kubeconfig, etc.) |
 | `azuredeploy.json` | ARM template for quick deployment |
 | `k8s/` | Kubernetes manifests and deployment scripts |
-| `k8s/helm_repo_init.py` | Initialize Helm repositories |
-| `k8s/helm_dd_install.py` | Install Datadog via Helm |
-| `k8s/deploy_sample_app.py` | Deploy AKS Store Demo |
+| `k8s/deploy.py` | Deployment CLI (repos, datadog, app) |
 | `k8s/datadog-values.yaml` | Datadog Helm values |
 | `k8s/aks-store-demo.yaml` | Sample microservices application |
 
