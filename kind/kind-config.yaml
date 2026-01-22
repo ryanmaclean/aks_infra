@@ -1,0 +1,31 @@
+# Kind cluster configuration for local development
+# Usage: kind create cluster --config kind/kind-config.yaml --name aks-store-demo
+#
+# January 2026
+---
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: aks-store-demo
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # Store front accessible at localhost:8080
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      # RabbitMQ management UI at localhost:15672
+      - containerPort: 30672
+        hostPort: 15672
+        protocol: TCP
+networking:
+  # Enable pod-to-pod communication
+  disableDefaultCNI: false
+  # Use default Kind CNI (kindnet)
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
