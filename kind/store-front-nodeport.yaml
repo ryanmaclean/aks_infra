@@ -1,0 +1,12 @@
+# Patch: Change store-front Service from LoadBalancer to NodePort for Kind
+apiVersion: v1
+kind: Service
+metadata:
+  name: store-front
+  namespace: pets
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30080

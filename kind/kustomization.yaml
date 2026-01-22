@@ -1,0 +1,8 @@
+# Kustomize overlay for Kind local development
+# Patches the store-front Service to use NodePort instead of LoadBalancer
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../k8s/aks-store-demo.yaml
+patches:
+  - path: store-front-nodeport.yaml
