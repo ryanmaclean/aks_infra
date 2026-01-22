@@ -57,6 +57,13 @@ class JsonFormatter(logging.Formatter):
             "service": SERVICE_NAME,
             "logger": record.name,
         }
+        # Include trace context for Datadog APM correlation
+        if TRACING_ENABLED and tracer:
+            span = tracer.current_span()
+            if span:
+                log_data["dd.trace_id"] = span.trace_id
+                log_data["dd.span_id"] = span.span_id
+        # Structured fields
         if hasattr(record, "command"):
             log_data["command"] = record.command
         if hasattr(record, "duration_ms"):
@@ -68,12 +75,17 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_data)
 
 
-def setup_logging(verbose: bool = False) -> logging.Logger:
+def setup_logging(verbose: bool = False, json_output: bool = False) -> logging.Logger:
     logger = logging.getLogger(SERVICE_NAME)
     logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    logger.handlers.clear()
 
     handler = logging.StreamHandler()
-    if os.getenv("DD_LOGS_INJECTION") or os.getenv("JSON_LOGS"):
+
+    # JSON if: --json flag, env var set, or not a TTY (piped/redirected)
+    use_json = json_output or os.getenv("DD_LOGS_INJECTION") or os.getenv("JSON_LOGS") or not sys.stdout.isatty()
+
+    if use_json:
         handler.setFormatter(JsonFormatter())
     else:
         handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
@@ -349,6 +361,7 @@ Instrumentation:
         """,
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("--json", action="store_true", help="JSON log output (auto-enabled when piped)")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # repos
@@ -370,7 +383,7 @@ Instrumentation:
     args = parser.parse_args()
 
     global log
-    log = setup_logging(args.verbose)
+    log = setup_logging(verbose=args.verbose, json_output=args.json)
 
     # Log instrumentation status
     if args.verbose:
