@@ -1,0 +1,31 @@
+# Kind cluster configuration for local development
+# Mirrors AKS infrastructure settings where applicable
+#
+# Usage: kind create cluster --config kind/kind-config.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: tahoe-local
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      # Store front HTTP access
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      # RabbitMQ management UI
+      - containerPort: 30672
+        hostPort: 15672
+        protocol: TCP
+  - role: worker
+  - role: worker
+# Network settings to support NetworkPolicy
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/16"
