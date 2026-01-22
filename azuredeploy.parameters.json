@@ -9,16 +9,10 @@
             "value": "GEN-UNIQUE"
         },
         "linuxAdminUsername": {
-            "value": "GEN-UNIQUE"
+            "value": "azureuser"
         },
         "sshRSAPublicKey": {
             "value": "GEN-SSH-PUB-KEY"
-        },
-        "servicePrincipalClientId": {
-            "value": "GEN-AZUREAD-AKS-APPID"
-        },
-        "servicePrincipalClientSecret": {
-            "value": "GEN-AZUREAD-AKS-APPID-SECRET"
         }
     }
 }

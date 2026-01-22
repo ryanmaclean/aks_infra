@@ -1,36 +1,103 @@
-# Azure AKS Infrastructure Repo
+# Azure AKS Infrastructure
 
-## Summary 
-This repository will help you quickly get up and running with AKS, 
-be it via Azure Resource Manager (ARM), or with Terraform.
+Modern AKS infrastructure using current Azure best practices (January 2026).
 
-## Overview
-Pictured is the infrastructure deployed via Terraform:
+## Deployment Options
 
-![alt text](https://github.com/ryanmaclean/aks_infra/blob/master/Screen%20Shot%202020-06-18%20at%2011.54.30%20AM.png?raw=true)
+### Terraform (Recommended)
 
-* VNet
-* Two Subnets
-  * Windows Node Subnet
-  * Linux Node Subnet
-* Windows AKS Nodepool (set to 1 node)
-* Linux AKS Nodepool (set to 1 node)
-* Load Balancer
+Full-featured AKS deployment with:
+- **AKS 1.31** with system and user node pools
+- **Managed Identity** and **Workload Identity** for secure Azure resource access
+- **Cilium CNI** with eBPF for networking and network policies
+- **Node Auto-Provisioning (NAP)** for automatic scaling
+- **ARM64 support** for cost-efficient workloads
 
-The ARM wizard is much more simple, and is a good start if you've yet to work with AKS, 
-and/or don't require a Windows nodepool:
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
 
-* Linux AKS Nodepool (default 1 node) 
-* Load Balancer
+terraform init
+terraform plan
+terraform apply
+```
 
-### ARM Deployment
-This repo supports the "Deply to Azure" button, hence the JSON files in the root. 
+### ARM Template (Quick Start)
 
-To do so, simply click on the following button:
-[![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
+Simpler deployment for getting started:
+- Linux node pool with managed identity
+- Standard Load Balancer
+- Azure CNI networking
 
-## Details
-The cluster itself, as well as this repo, were made to support deployments via Azure Devops, 
-as well as to demonstrate Datadog monitoring. That being said, feel free to fork and play
-with the manifests in the `k8s` folder!
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fryanmaclean%2Faks_infra%2Fmaster%2Fazuredeploy.json)
 
+## Architecture
+
+The Terraform deployment creates:
+
+```
+Resource Group
+├── AKS Cluster (1.31)
+│   ├── System Node Pool (ARM64)
+│   ├── User Node Pool (auto-provisioned)
+│   └── Cilium CNI + Network Policies
+├── Virtual Network
+│   ├── AKS Subnet (10.1.0.0/16)
+│   └── Service endpoints
+├── User-Assigned Managed Identity
+├── Azure AD Application (Workload Identity)
+└── Log Analytics Workspace
+```
+
+## Kubernetes Deployments
+
+### Sample Application
+
+```bash
+./k8s/deploy-sample-app.sh
+```
+
+Deploys the AKS Store Demo (microservices sample with AI integration).
+
+### Datadog Monitoring
+
+```bash
+# Initialize Helm repos
+./k8s/helm_repo_init.sh
+
+# Install Datadog Operator
+./k8s/helm_dd_install.sh
+```
+
+Uses the Datadog Operator for automated agent lifecycle management.
+
+## Files
+
+| Path | Description |
+|------|-------------|
+| `terraform/` | OpenTofu/Terraform configurations |
+| `terraform/main.tf` | AKS cluster, networking, identity |
+| `terraform/variables.tf` | Input variables |
+| `terraform/outputs.tf` | Cluster outputs (kubeconfig, etc.) |
+| `azuredeploy.json` | ARM template for quick deployment |
+| `k8s/` | Kubernetes manifests and scripts |
+| `k8s/datadog-values.yaml` | Datadog Operator Helm values |
+| `k8s/aks-store-demo.yaml` | Sample microservices application |
+
+## Requirements
+
+- Azure CLI 2.50+
+- OpenTofu 1.6+ or Terraform 1.6+
+- kubectl
+- Helm 3.x (for Datadog)
+
+## Modernization Notes (2026)
+
+This repo was updated from 2020-era configurations:
+
+- **Identity**: Service Principal → Managed Identity + Workload Identity
+- **Provider**: AzureRM 3.x → 4.x (breaking changes in resource attributes)
+- **Networking**: Basic Azure CNI → Cilium with eBPF overlay
+- **Nodes**: Static pools → Node Auto-Provisioning, ARM64 support
+- **Observability**: Datadog DaemonSet → Datadog Operator
