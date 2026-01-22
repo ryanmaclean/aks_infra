@@ -111,3 +111,27 @@ This repo was updated from 2020-era configurations:
 - **Networking**: Basic Azure CNI → Cilium with eBPF overlay
 - **Nodes**: Static pools → Node Auto-Provisioning, ARM64 support
 - **Observability**: Datadog DaemonSet → Datadog Operator
+
+## Development
+
+### Pre-commit Hooks
+
+This repo uses [pre-commit](https://pre-commit.com/) for code quality checks:
+
+- **ruff**: Python linting and formatting
+- **black**: Python code formatting
+- **mypy**: Python type checking
+- **terraform_fmt**: Terraform formatting
+
+Setup:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Run manually on all files:
+
+```bash
+pre-commit run --all-files
+```
